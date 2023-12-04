@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "650923938507",
+    "firebase_url": "https://gs-mvp-473aa-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "gs-mvp-473aa",
+    "storage_bucket": "gs-mvp-473aa.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:650923938507:android:7694931e587c376448c14e",
+        "android_client_info": {
+          "package_name": "com.example.gs_mvp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "650923938507-rafs20jp8hnviin2fpk43cqchljgo7kh.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDtOangN9GwWoiIwDLlQm_phRb4JuQansg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "650923938507-rafs20jp8hnviin2fpk43cqchljgo7kh.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "650923938507-f3blqpf2gj2o5sbm0kc0unin9uqe3kc6.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.gsMvp"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
