@@ -4,6 +4,7 @@ import 'dart:math';
 
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 class RealtimeDataProvider {
@@ -46,6 +47,10 @@ class RealtimeDataProvider {
 
   Uint8List? croppedImg;
   String? croppedImgString;
+  //
+  // Uint8List? croppedImg;
+  List<Uint8List> croppedImgList = [];
+  List<String> croppedImgDateTimeList = [];
 
   Future<void> listenChannel() async {
     // Stream broadCastStream = streamController.stream.asBroadcastStream();
@@ -73,8 +78,17 @@ class RealtimeDataProvider {
         if (croppedImgString != null && croppedImgString != 'null') {
           croppedImg = base64Decode(croppedImgString!);
           // debugPrint('cropped img : ${croppedImg}');
+          croppedImgList.insert(0, croppedImg!);
+          DateTime now = DateTime.now();
+          String nowString = DateFormat('yy/MM/dd HH:mm:ss').format(now);
+          croppedImgDateTimeList.insert(0, nowString);
         } else {
           croppedImg = null;
+        }
+
+        if (croppedImgList.length > 15) {
+          croppedImgList.removeLast();
+          croppedImgDateTimeList.removeLast();
         }
 
         flSpotsList.add(FlSpot(cnt.toDouble(), congestion));
@@ -93,7 +107,9 @@ class RealtimeDataProvider {
           'carInteriorWashCnt': carInteriorWashCnt,
           'flSpotsList': flSpotsList,
           'maxXValue': maxXValue,
-          'croppedImg': croppedImg,
+          // 'croppedImg': croppedImg,
+          'croppedImgList': croppedImgList,
+          'croppedImgDateTimeList': croppedImgDateTimeList
         };
         streamController.add(dataEvent);
       },

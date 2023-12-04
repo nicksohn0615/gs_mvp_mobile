@@ -43,22 +43,25 @@ class _ReatimeViewerState extends State<ReatimeViewer> {
         // realtimeWaitingTime = dataMap['waiting_time'];
         // debugPrint('check3');
         numberOfWaitingCars = event['numberOfWaitingCars'];
-        croppedImg = event['croppedImg'];
-        if (croppedImg != null) {
-          realtimeImgCheck = croppedImg;
-          // croppedImgList.add(croppedImg!);
-          croppedImgList.insert(0, croppedImg!);
-          DateTime now = DateTime.now().toUtc().toLocal();
-          String nowString = DateFormat('yy/MM/dd HH:mm:ss').format(now);
-          // croppedImgDateTimeList.add(nowString);
-          croppedImgDateTimeList.insert(0, nowString);
-          if (croppedImgList.length > 10) {
-            croppedImgList.removeLast();
-          }
-          if (croppedImgDateTimeList.length > 10) {
-            croppedImgDateTimeList.removeLast();
-          }
-        }
+        // croppedImg = event['croppedImg'];
+        croppedImgList = event['croppedImgList'];
+        croppedImgDateTimeList = event['croppedImgDateTimeList'];
+
+        // if (croppedImg != null) {
+        //   realtimeImgCheck = croppedImg;
+        //   // croppedImgList.add(croppedImg!);
+        //   croppedImgList.insert(0, croppedImg!);
+        //   DateTime now = DateTime.now().toUtc().toLocal();
+        //   String nowString = DateFormat('yy/MM/dd HH:mm:ss').format(now);
+        //   // croppedImgDateTimeList.add(nowString);
+        //   croppedImgDateTimeList.insert(0, nowString);
+        //   if (croppedImgList.length > 10) {
+        //     croppedImgList.removeLast();
+        //   }
+        //   if (croppedImgDateTimeList.length > 10) {
+        //     croppedImgDateTimeList.removeLast();
+        //   }
+        // }
 
         setState(() {
           _isReady = true;
@@ -85,7 +88,7 @@ class _ReatimeViewerState extends State<ReatimeViewer> {
     super.initState();
   }
 
-  Uint8List? croppedImg;
+  // Uint8List? croppedImg;
   List<Uint8List> croppedImgList = [];
   List<String> croppedImgDateTimeList = [];
 
