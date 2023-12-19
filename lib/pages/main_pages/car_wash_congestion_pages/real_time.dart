@@ -31,8 +31,9 @@ class _ReatimeViewerState extends State<ReatimeViewer> {
   int numberOfWaitingCars = 0;
 
   CustomDialogs dialogsInstance = CustomDialogs();
-  @override
-  void initState() {
+
+  Future<void> listenStream() async {
+    await Future.delayed(Duration(milliseconds: 500));
     _broadCast = _realtimeDataProvider.streamController.stream;
     _sub = _broadCast!.listen((event) {
       // debugPrint('event in homepage from provider ${event}');
@@ -44,8 +45,10 @@ class _ReatimeViewerState extends State<ReatimeViewer> {
         // debugPrint('check3');
         numberOfWaitingCars = event['numberOfWaitingCars'];
         // croppedImg = event['croppedImg'];
-        croppedImgList = event['croppedImgList'];
-        croppedImgDateTimeList = event['croppedImgDateTimeList'];
+
+        // croppedImgList = event['croppedImgList'];
+        // croppedImgDateTimeList = event['croppedImgDateTimeList'];
+        // croppedImgAreaList = event['croppedImgAreaList'];
 
         // if (croppedImg != null) {
         //   realtimeImgCheck = croppedImg;
@@ -84,13 +87,49 @@ class _ReatimeViewerState extends State<ReatimeViewer> {
         _isReady = false;
       });
     });
+  }
 
+  @override
+  void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((timeStamp) async {
+      listenConnectionReady();
+      await listenStream();
+    });
+  }
+
+  bool isDataProviderReady = false;
+
+  Stream<bool>? _connectionReadyStream;
+  StreamSubscription? _subConnectionReady;
+  void listenConnectionReady() {
+    debugPrint('listen connection ready init');
+    _connectionReadyStream = _realtimeDataProvider.connectionReady.stream;
+    debugPrint('_connectionReadyStream $_connectionReadyStream');
+    _subConnectionReady = _connectionReadyStream!.listen(
+        (event) {
+          setState(() {
+            if (event) {
+              isDataProviderReady = true;
+              debugPrint('isDataProviderReady in rt $isDataProviderReady');
+              // _isReady = true;
+            } else {
+              isDataProviderReady = false;
+              debugPrint('isDataProviderReady in rt $isDataProviderReady');
+              // _isReady = false;
+            }
+          });
+        },
+        onDone: () {},
+        onError: (e) {
+          debugPrint('error sub bool rt $e');
+        });
   }
 
   // Uint8List? croppedImg;
-  List<Uint8List> croppedImgList = [];
-  List<String> croppedImgDateTimeList = [];
+  // List<Uint8List> croppedImgList = [];
+  // List<String> croppedImgDateTimeList = [];
+  // List<int> croppedImgAreaList = [];
 
   Stream? _broadCast;
   StreamSubscription? _sub;
@@ -103,6 +142,12 @@ class _ReatimeViewerState extends State<ReatimeViewer> {
     if (_sub != null) {
       _sub!.cancel();
     }
+    if (_subConnectionReady != null) {
+      _subConnectionReady!.cancel();
+    }
+    // if (_sub != null) {
+    //   _sub!.cancel();
+    // }
     super.dispose();
   }
 
@@ -120,49 +165,66 @@ class _ReatimeViewerState extends State<ReatimeViewer> {
     return Scaffold(
       body: SafeArea(
           child: _isReady
-              ? GridView.count(
-                  padding: const EdgeInsets.all(8.0),
-                  crossAxisCount: gridCrossAxisCount,
-                  children: <Widget>[
-                    InkWell(
-                        onTap: () {},
-                        child: buildCustomCard(
-                            congestionCardContent(
-                                congestion + _congestionAdded),
-                            '혼잡도')),
-                    InkWell(
-                        onTap: () {},
-                        child: buildCustomCard(
-                            // numberOfWaitingCarsCardContent(),
-                            numberOfWaitingCarsCardContent(numberOfWaitingCars),
-                            '대기차량')),
-                    // InkWell(
-                    //     onTap: () {},
-                    //     child: buildCustomCard(
-                    //         waitingTimeCardContent(
-                    //             realtimeWaitingTime, savedDateTime),
-                    //         // waitingTimeCardContent(260),
-                    //         '대기시간')),
-                    InkWell(
-                      onTap: () {},
-                      child:
-                          buildCustomCard(realtimeCctvContent(), '실시간 CCTV 보기'),
-                    ),
-                    InkWell(
-                        onTap: () {},
-                        child: buildCustomCard(
-                            realtimeRecordViewContent2(), '실시간 차량기록')),
-                  ],
-                )
+              ? !isDataProviderReady
+                  ? Center(
+                      child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(
+                          height: 10,
+                        ),
+                        Text('서버에 연결 중...')
+                      ],
+                    ))
+                  : GridView.count(
+                      padding: const EdgeInsets.all(8.0),
+                      crossAxisCount: gridCrossAxisCount,
+                      children: <Widget>[
+                        InkWell(
+                            onTap: () {},
+                            child: buildCustomCard(
+                                congestionCardContent(
+                                    congestion + _congestionAdded),
+                                '혼잡도')),
+                        InkWell(
+                            onTap: () {},
+                            child: buildCustomCard(
+                                // numberOfWaitingCarsCardContent(),
+                                numberOfWaitingCarsCardContent(
+                                    numberOfWaitingCars),
+                                '대기차량')),
+                        // InkWell(
+                        //     onTap: () {},
+                        //     child: buildCustomCard(
+                        //         waitingTimeCardContent(
+                        //             realtimeWaitingTime, savedDateTime),
+                        //         // waitingTimeCardContent(260),
+                        //         '대기시간')),
+                        InkWell(
+                          onTap: () {},
+                          child: buildCustomCard(
+                              realtimeCctvContent(), '실시간 CCTV 보기'),
+                        ),
+                        // InkWell(
+                        //     onTap: () {},
+                        //     child: buildCustomCard(
+                        //         realtimeRecordViewContent2(), '실시간 차량기록')),
+                      ],
+                    )
               : Center(
                   child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    CircularProgressIndicator(),
-                    SizedBox(
-                      height: 10,
+                    SpinKitDualRing(
+                      color: Colors.black54,
+                      duration: Duration(milliseconds: 900),
                     ),
-                    Text('서버에 연결 중...')
+                    // CircularProgressIndicator(),
+                    SizedBox(
+                      height: 20,
+                    ),
+                    Text('Loading Data...')
                   ],
                 ))),
     );
@@ -219,7 +281,7 @@ class _ReatimeViewerState extends State<ReatimeViewer> {
                     numberOfCarsValue >= i
                         ? colorOfIcon
                         : Colors.grey.withOpacity(0.5),
-                    40
+                    38
 
                     // MediaQuery.of(context).orientation == Orientation.portrait
                     //     ? (1 / 12) * MediaQuery.of(context).size.width
@@ -312,87 +374,89 @@ class _ReatimeViewerState extends State<ReatimeViewer> {
   //   ));
   // }
 
-  Widget listViewItem2(int index) {
-    Uint8List img = croppedImgList[index];
-    String timeString = croppedImgDateTimeList[index];
-    return SizedBox(
-      height: 100,
-      child: Card(
-        elevation: 12.0,
-        // height: 80,
-        // color:,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Text('index: ${index}'),
-            Expanded(flex: 1, child: SizedBox()),
-            Expanded(
-              flex: 10,
-              child: Padding(
-                  padding: EdgeInsets.all(4.0), child: Image.memory(img)),
-            ),
-            // Text('IN:${imgNum}'),
-            Expanded(flex: 1, child: SizedBox()),
-            Expanded(
-              flex: 20,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(1.0),
-                    child: Text(timeString),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(1.0),
-                    child: Text('Area: -'),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(1.0),
-                    child: Text('Direction: ( - , - )'),
-                  )
-                ],
-              ),
-            ),
-            Expanded(flex: 1, child: SizedBox()),
-          ],
-        ),
-      ),
-    );
-  }
+  // Widget listViewItem2(int index) {
+  //   Uint8List img = croppedImgList[index];
+  //   String timeString = croppedImgDateTimeList[index];
+  //   String areaString = '${croppedImgAreaList[index]}';
+  //   return SizedBox(
+  //     height: 100,
+  //     child: Card(
+  //       elevation: 12.0,
+  //       // height: 80,
+  //       // color:,
+  //       child: Row(
+  //         mainAxisAlignment: MainAxisAlignment.center,
+  //         children: [
+  //           // Text('index: ${index}'),
+  //           Expanded(flex: 1, child: SizedBox()),
+  //           Expanded(
+  //             flex: 10,
+  //             child: Padding(
+  //                 padding: EdgeInsets.all(4.0), child: Image.memory(img)),
+  //           ),
+  //           // Text('IN:${imgNum}'),
+  //           Expanded(flex: 1, child: SizedBox()),
+  //           Expanded(
+  //             flex: 20,
+  //             child: Column(
+  //               mainAxisAlignment: MainAxisAlignment.center,
+  //               children: [
+  //                 Padding(
+  //                   padding: const EdgeInsets.all(1.0),
+  //                   child: Text(timeString),
+  //                 ),
+  //                 Padding(
+  //                   padding: const EdgeInsets.all(1.0),
+  //                   child: Text('Area: ${areaString}'),
+  //                 ),
+  //                 // Padding(
+  //                 //   padding: const EdgeInsets.all(1.0),
+  //                 //   child: Text('Direction: ( - , - )'),
+  //                 // )
+  //               ],
+  //             ),
+  //           ),
+  //           Expanded(flex: 1, child: SizedBox()),
+  //         ],
+  //       ),
+  //     ),
+  //   );
+  // }
 
-  Widget realtimeRecordViewContent2() {
-    return Expanded(
-        child: croppedImgList.length > 0
-            ? ListView.builder(
-                padding: const EdgeInsets.all(16.0),
-                itemCount: croppedImgList.length,
-                itemBuilder: (BuildContext context, int index) {
-                  // debugPrint('list view idx: ${realtimeRecordViewDataList.length}');
-                  return Padding(
-                    padding: const EdgeInsets.all(3.0),
-                    child: listViewItem2(index),
-                  );
-                })
-            : Center(
-                child: SizedBox(
-                    width: 200,
-                    height: 200,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        // CircularProgressIndicator(),
-                        SpinKitPouringHourGlass(
-                          color: Colors.black38,
-                          size: 50,
-                          duration: Duration(milliseconds: 1000),
-                        ),
-                        SizedBox(
-                          height: 10,
-                        ),
-                        Text('No objects detected yet')
-                      ],
-                    ))));
-  }
+  // Widget realtimeRecordViewContent2() {
+  //   return Expanded(
+  //       child: croppedImgList.length > 0
+  //           ? ListView.builder(
+  //               padding: const EdgeInsets.all(16.0),
+  //               itemCount: croppedImgList.length,
+  //               itemBuilder: (BuildContext context, int index) {
+  //                 // debugPrint('list view idx: ${realtimeRecordViewDataList.length}');
+  //                 return Padding(
+  //                   padding: const EdgeInsets.all(3.0),
+  //                   child: listViewItem2(index),
+  //                 );
+  //               })
+  //           : Center(
+  //               child: SizedBox(
+  //                   width: 200,
+  //                   height: 200,
+  //                   child: Column(
+  //                     mainAxisAlignment: MainAxisAlignment.center,
+  //                     children: [
+  //                       // CircularProgressIndicator(),
+  //
+  //                       SpinKitPouringHourGlass(
+  //                         color: Colors.black38,
+  //                         size: 50,
+  //                         duration: Duration(milliseconds: 1000),
+  //                       ),
+  //                       SizedBox(
+  //                         height: 10,
+  //                       ),
+  //                       Text('No objects detected yet')
+  //                     ],
+  //                   ))));
+  // }
 
   void openRtspDialog() {
     double width = MediaQuery.of(context).size.width;
@@ -464,7 +528,8 @@ class _ReatimeViewerState extends State<ReatimeViewer> {
                             },
                             icon: Icon(
                               Icons.camera_alt_outlined,
-                              color: Color(0xff1E1250).withOpacity(0.8),
+                              // color: Color(0xff1E1250).withOpacity(0.8),
+                              color: Colors.black,
                               size: 80,
                             )),
                       ),
@@ -743,7 +808,8 @@ class _ReatimeViewerState extends State<ReatimeViewer> {
                   child: Container(
                       height: 50,
                       padding: EdgeInsets.all(8.0),
-                      color: Color(0xff1E1250).withOpacity(0.9),
+                      // color: Color(0xff1E1250).withOpacity(0.9),
+                      color: Colors.black54,
                       // decoration: BoxDecoration(
                       //     gradient: LinearGradient(
                       //         begin: Alignment.centerLeft,

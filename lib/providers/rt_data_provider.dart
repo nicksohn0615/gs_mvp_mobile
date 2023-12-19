@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
+import 'package:media_kit/media_kit.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 class RealtimeDataProvider {
@@ -25,6 +26,7 @@ class RealtimeDataProvider {
   int electricChargingWaitingCnt = 0;
   int carInteriorWashCnt = 0;
   bool isConnected = false;
+  Map weatherInfo = {};
 
   int cnt = 1;
 
@@ -43,22 +45,41 @@ class RealtimeDataProvider {
     if (_sub != null) {
       _sub!.cancel();
     }
+    streamController.close();
+    connectionReady.close();
   }
 
   Uint8List? croppedImg;
   String? croppedImgString;
+  String? croppedData;
+  int? areaNum;
+  Map<String, dynamic>? jsonData;
   //
   // Uint8List? croppedImg;
   List<Uint8List> croppedImgList = [];
   List<String> croppedImgDateTimeList = [];
+  List<int> croppedImgAreaList = [];
+
+  Future<void> establishConnection() async {
+    await connect();
+    await listenChannel();
+    // connectionReady.add(true);
+  }
+
+  StreamController<bool> connectionReady = StreamController<bool>.broadcast();
+  // Stream<bool> get onChange => connectionReady.stream;
+  // Stream connectionReady = Stream.
 
   Future<void> listenChannel() async {
     // Stream broadCastStream = streamController.stream.asBroadcastStream();
+    // _channel!.stream.
+    // connectionReady.add(true);
     _sub = _channel!.stream.listen(
       (dynamic message) {
+        connectionReady.add(true);
         // debugPrint('message in homepage : $message');
         Map<String, dynamic> dataMap = jsonDecode(jsonDecode(message));
-        debugPrint('datamap in provider : $dataMap');
+        // debugPrint('datamap in rt provider : $dataMap');
         // debugPrint('check1');
         totalCnt = dataMap['total_cnt'];
         congestion = dataMap['congestion'] as double;
@@ -74,14 +95,32 @@ class RealtimeDataProvider {
         // debugPrint('check5');
         carInteriorWashCnt = dataMap['car_interior_wash_cnt'];
         // debugPrint('check6');
-        croppedImgString = dataMap['cropped_img'];
-        if (croppedImgString != null && croppedImgString != 'null') {
+        croppedData = dataMap['cropped_data'];
+
+        // debugPrint('croppedImgString : ${croppedImgString}');
+        // debugPrint('croppedImgString Type : ${croppedImgString.runtimeType}');
+        // debugPrint('cropped data : ${croppedData}');
+        // debugPrint('check666');
+        weatherInfo = dataMap['weather_info'];
+        if (croppedData != null) {
+          debugPrint('cropped data not null');
+          debugPrint('cropped data : ${croppedData}');
+          // var areaNum = dataMap['cropped_img']['area_num'];
+          // jsonData = jsonDecode(jsonDecode(croppedData!));
+          jsonData = jsonDecode(croppedData!);
+          debugPrint('jsonData received : ${jsonData}');
+          croppedImgString = jsonData!['crop_img'];
+          debugPrint('cropped img string ${croppedImgString}');
+          areaNum = (jsonData!['area_num']);
+          // debugPrint(
+          //     'areaNum : ${areaNum} , areaNum type ${areaNum.runtimeType}');
           croppedImg = base64Decode(croppedImgString!);
           // debugPrint('cropped img : ${croppedImg}');
           croppedImgList.insert(0, croppedImg!);
           DateTime now = DateTime.now();
           String nowString = DateFormat('yy/MM/dd HH:mm:ss').format(now);
           croppedImgDateTimeList.insert(0, nowString);
+          croppedImgAreaList.insert(0, areaNum!);
         } else {
           croppedImg = null;
         }
@@ -89,16 +128,17 @@ class RealtimeDataProvider {
         if (croppedImgList.length > 15) {
           croppedImgList.removeLast();
           croppedImgDateTimeList.removeLast();
+          croppedImgAreaList.removeLast();
         }
 
         flSpotsList.add(FlSpot(cnt.toDouble(), congestion));
         if (flSpotsList.length > 100) {
           flSpotsList.removeAt(0);
         }
-        maxXValue = max(cnt, 5);
-
+        maxXValue = max(cnt, 5) + 1;
         // debugPrint('flspotlist ${flSpotsList}');
         cnt++;
+        // debugPrint('check8');
         Map<String, dynamic> dataEvent = {
           'totalCnt': totalCnt,
           'congestion': congestion,
@@ -109,23 +149,39 @@ class RealtimeDataProvider {
           'maxXValue': maxXValue,
           // 'croppedImg': croppedImg,
           'croppedImgList': croppedImgList,
-          'croppedImgDateTimeList': croppedImgDateTimeList
+          'croppedImgDateTimeList': croppedImgDateTimeList,
+          'croppedImgAreaList': croppedImgAreaList,
+          'weatherInfo': weatherInfo
         };
+        // debugPrint('check9');
         streamController.add(dataEvent);
+        // debugPrint('check10');
       },
-      onDone: () {
+      onDone: () async {
         debugPrint('ws channel closed');
-        streamController.close();
+        // streamController.close();
         if (_sub != null) {
           _sub!.cancel();
+        }
+        isConnected = false;
+        connectionReady.add(false);
+        if (!isConnected) {
+          await Future.delayed(Duration(milliseconds: 500));
+          await establishConnection();
         }
       },
-      onError: (error) {
+      onError: (error) async {
         debugPrint('ws home error $error');
-        streamController.close();
+        // streamController.close();
         if (_sub != null) {
           _sub!.cancel();
         }
+        if (!isConnected) {
+          await Future.delayed(Duration(milliseconds: 500));
+          await establishConnection();
+        }
+
+        connectionReady.add(false);
       },
     );
   }
@@ -136,7 +192,7 @@ class RealtimeDataProvider {
       debugPrint('check1');
       _channel = WebSocketChannel.connect(wsUrl);
       debugPrint('check2');
-      await _channel!.ready;
+      await _channel!.ready.timeout(Duration(milliseconds: 5000));
       debugPrint('check3');
       debugPrint('home stream init');
       // setState(() {
@@ -144,12 +200,17 @@ class RealtimeDataProvider {
       // });
       isConnected = true;
     } catch (e) {
-      try {
-        _serverConnectTimer?.cancel();
-      } catch (e) {
-        debugPrint('timer cancel error on try home: ${e}');
-      }
+      // try {
+      //   _serverConnectTimer?.cancel();
+      // } catch (e) {
+      //   debugPrint('timer cancel error on try home: ${e}');
+      // }
       debugPrint('error home page when connect ${e}');
+      if (!isConnected) {
+        await Future.delayed(Duration(milliseconds: 500));
+        await establishConnection();
+      }
+      connectionReady.add(false);
     }
 
     //

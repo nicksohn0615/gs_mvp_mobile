@@ -181,7 +181,8 @@ class _LoginPageState extends State<LoginPage> {
             contentPadding:
                 const EdgeInsets.symmetric(vertical: 10.0, horizontal: 10.0),
             filled: true,
-            fillColor: Colors.black38,
+            // fillColor: Colors.black38,
+            fillColor: Colors.black54,
             hintStyle: const TextStyle(fontSize: 16.0, color: Colors.white60),
             enabledBorder: _formFieldBorder,
             border: _formFieldBorder,
@@ -190,13 +191,15 @@ class _LoginPageState extends State<LoginPage> {
             focusedBorder: _formFieldBorder));
   }
 
-  final List<String> items = ['<지점명을 선택하세요>'];
+  // final List<String> items = ['<지점명을 선택하세요>'];
+  final List<String> items = ['<Please select a branch name>'];
 
   String? selectedValue;
 
   Widget _buildDropDownButton() {
     return DropdownButtonHideUnderline(
       child: DropdownButton2<String>(
+        iconStyleData: IconStyleData(iconEnabledColor: Colors.white70),
         isExpanded: true,
         hint: Row(
           children: [
@@ -210,7 +213,8 @@ class _LoginPageState extends State<LoginPage> {
             ),
             Expanded(
               child: Text(
-                '지점명을 선택하세요',
+                // '지점명을 선택하세요',
+                'Please select a branch name',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -252,7 +256,7 @@ class _LoginPageState extends State<LoginPage> {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(10.0),
             border: Border.all(color: Colors.white38, width: 1.0),
-            color: Colors.black38,
+            color: Colors.black54,
           ),
           elevation: 0,
         ),
@@ -298,14 +302,16 @@ class _LoginPageState extends State<LoginPage> {
                 // Colors.white,
 
                 // Colors.black.withOpacity(0.8),
-                // Colors.white,
+                Colors.white,
+                Colors.white,
                 // Color(0xff1E1250),
-                Color(0xff1E1250),
-                Color(0xff1E1250),
+                // Color(0xff1E1250),
+                // Color(0xff1E1250),
               ]),
           // color: Colors.black,
           image: DecorationImage(
-            image: AssetImage('assets/images/citygif_50fps.gif'),
+            // image: AssetImage('assets/images/citygif_50fps.gif'),
+            image: AssetImage('assets/images/smart_city1.gif'),
             fit: BoxFit.fitWidth,
             alignment: Alignment.bottomCenter,
           )),
@@ -352,7 +358,8 @@ class _LoginPageState extends State<LoginPage> {
                         child: DefaultTextStyle(
                           style: const TextStyle(
                               fontSize: 20.0,
-                              color: Colors.white70,
+                              // color: Colors.white70,
+                              color: Colors.black54,
                               fontFamily: 'kyobo',
                               fontWeight: FontWeight.bold),
                           child: AnimatedTextKit(
@@ -378,8 +385,8 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   Divider(
                     height: 40.0,
-                    thickness: 6.0,
-                    color: Colors.white12,
+                    thickness: 4.0,
+                    color: Colors.black12,
                     indent: machineWidth * 0.1,
                     endIndent: machineWidth * 0.1,
                   ),
@@ -448,7 +455,8 @@ class _LoginPageState extends State<LoginPage> {
                         child: isLoginWaiting
                             ? Center(
                                 child: CircularProgressIndicator(
-                                  color: Colors.white.withOpacity(0.9),
+                                  // color: Colors.white.withOpacity(0.9),
+                                  color: Colors.black38,
                                   strokeWidth: 6.0,
                                 ),
                               )
@@ -458,9 +466,11 @@ class _LoginPageState extends State<LoginPage> {
                                       vertical: 0.0, horizontal: 100.0),
                                   child: TextButton(
                                     style: TextButton.styleFrom(
-                                        primary: Colors.black38,
+                                        primary: Colors.black54,
                                         backgroundColor:
-                                            Colors.white.withOpacity(0.9),
+                                            // Colors.white.withOpacity(0.9),
+                                            // Colors.black54,
+                                            Colors.black87,
                                         shape: const RoundedRectangleBorder(
                                             borderRadius: BorderRadius.all(
                                                 Radius.circular(30.0)),
@@ -474,11 +484,13 @@ class _LoginPageState extends State<LoginPage> {
                                       await _signInProccess();
                                     },
                                     child: Text(
-                                      "  로그인  ",
+                                      "  Login  ",
                                       style: TextStyle(
                                           fontSize: 20,
-                                          color: Color(0xff1E1250),
-                                          fontWeight: FontWeight.w900),
+                                          // color: Color(0xff1E1250),
+                                          // color: Colors.black54,
+                                          color: Colors.white54,
+                                          fontWeight: FontWeight.w700),
                                     ),
                                   ),
                                 ),

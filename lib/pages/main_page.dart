@@ -5,6 +5,7 @@ import 'package:gs_mvp/pages/main_pages/conflict_point.dart';
 import 'package:gs_mvp/pages/main_pages/home_page.dart';
 import 'package:gs_mvp/pages/main_pages/live_page.dart';
 import 'package:gs_mvp/pages/main_pages/mypage.dart';
+import 'package:gs_mvp/providers/data_provider.dart';
 import 'package:gs_mvp/providers/rt_data_provider.dart';
 
 class MainPage extends StatefulWidget {
@@ -21,24 +22,27 @@ class _MainPageState extends State<MainPage> {
   //     TextStyle(fontSize: 30, fontWeight: FontWeight.bold);
 
   // RealtimeDataProvider? rtDataProvider;
-  RealtimeDataProvider rtDataProvider = RealtimeDataProvider();
+  RealtimeDataProvider? rtDataProvider = RealtimeDataProvider();
+  DataProvider? dataProvider = DataProvider();
   @override
   void initState() {
     super.initState();
     // _pageController = PageController();
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await rtDataProvider!.connect();
-      await rtDataProvider!.listenChannel();
+      // await rtDataProvider!.connect();
+      // await rtDataProvider!.listenChannel();
+      await rtDataProvider!.establishConnection();
+      await dataProvider!.getGasPice();
     });
   }
 
   @override
   void dispose() {
     _pageController.dispose();
-    if (rtDataProvider != null) {
-      rtDataProvider!.dispose();
-    }
+    // if (rtDataProvider != null) {
+    //   rtDataProvider!.dispose();
+    // }
     super.dispose();
   }
 
@@ -50,6 +54,9 @@ class _MainPageState extends State<MainPage> {
     CamViewer(),
     MyPage(),
   ];
+
+  // Function? innerSetState;
+  StateSetter? innerSetState;
 
   void _onItemTapped(int index) {
     setState(() {
@@ -82,7 +89,7 @@ class _MainPageState extends State<MainPage> {
                 child: Center(
                   child: Text(
                     'Admin Panel',
-                    style: TextStyle(fontSize: 18),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 )),
             SizedBox(
@@ -94,11 +101,11 @@ class _MainPageState extends State<MainPage> {
                 child: Center(
                   child: Text(
                     'by ',
-                    style: TextStyle(fontSize: 10, color: Colors.grey),
+                    style: TextStyle(fontSize: 10, color: Colors.white60),
                   ),
                 )),
             SizedBox(
-              width: 5,
+              width: 10,
             ),
             Column(
               children: [
@@ -108,7 +115,9 @@ class _MainPageState extends State<MainPage> {
                   child: Center(
                     child: SvgPicture.asset(
                       'assets/logo/main_logo.svg',
-                      color: Colors.lightBlue,
+                      // color: Colors.lightBlue,
+                      // color: Colors.blue,
+                      color: Colors.white,
                     ),
                   ),
                 ),
@@ -122,7 +131,11 @@ class _MainPageState extends State<MainPage> {
             )
           ],
         ),
-        backgroundColor: Color(0xff1E1250).withOpacity(0.85),
+        // backgroundColor: Color(0xff1E1250).withOpacity(0.85),
+        backgroundColor: Colors.black54,
+        // backgroundColor: Colors.blue,
+        // backgroundColor: Colors.indigo,
+        // backgroundColor: Colors.blueAccent,
         elevation: 0,
       ),
       body: Row(
@@ -199,7 +212,11 @@ class _MainPageState extends State<MainPage> {
         elevation: 4,
         type: BottomNavigationBarType.fixed,
         // backgroundColor: Colors.lightBlueAccent.withOpacity(0.5),
-        backgroundColor: Color(0xff1E1250).withOpacity(0.85),
+        // backgroundColor: Color(0xff1E1250).withOpacity(0.85),
+        backgroundColor: Colors.black54,
+        // backgroundColor: Colors.blue,
+        // backgroundColor: Colors.indigo,
+        // backgroundColor: Colors.blueAccent,
         // fixedColor: Colors.black12,
         currentIndex: _selectedIndex,
         selectedItemColor: Colors.white,
@@ -215,7 +232,8 @@ class _MainPageState extends State<MainPage> {
 
   Widget _myNavigationRail() {
     return NavigationRail(
-      backgroundColor: Color(0xff1E1250).withOpacity(0.85),
+      // backgroundColor: Color(0xff1E1250).withOpacity(0.85),
+      backgroundColor: Colors.black54,
       selectedLabelTextStyle: TextStyle(color: Colors.white),
       unselectedLabelTextStyle: TextStyle(color: Colors.white54),
       minWidth: 120,
@@ -324,7 +342,8 @@ class _MainPageState extends State<MainPage> {
           child: ConstrainedBox(
             constraints: BoxConstraints(minHeight: constraint.maxHeight),
             child: NavigationRail(
-              backgroundColor: Color(0xff1E1250).withOpacity(0.85),
+              // backgroundColor: Color(0xff1E1250).withOpacity(0.85),
+              backgroundColor: Colors.black54,
               selectedLabelTextStyle: TextStyle(color: Colors.white),
               unselectedLabelTextStyle: TextStyle(color: Colors.white54),
               minWidth: 120,

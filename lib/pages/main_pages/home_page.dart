@@ -1,11 +1,16 @@
 import 'dart:async';
+import 'dart:core';
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:animate_gradient/animate_gradient.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_heatmap_calendar/flutter_heatmap_calendar.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'package:gs_mvp/components/gas_price_chart.dart';
+import 'package:gs_mvp/providers/data_provider.dart';
+import 'package:weather_animation/weather_animation.dart';
 
 import '../../providers/rt_data_provider.dart';
 
@@ -23,11 +28,11 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void initState() {
-    // WidgetsBinding.instance.addPostFrameCallback((timeStamp) async {
-    //   // await connect();
-    //   // stream();
-    // });
-    listenStream();
+    WidgetsBinding.instance.addPostFrameCallback((timeStamp) async {
+      listenConnectionReady();
+      await listenStream();
+    });
+
     // _broadCast = _realtimeDataProvider.streamController.stream;
     // _sub = _broadCast!.listen((event) {
     //   // debugPrint('event in homepage from provider ${event}');
@@ -70,12 +75,17 @@ class _HomePageState extends State<HomePage> {
     // });
 
     super.initState();
+    // listenConnectionReady();
+    // listenStream();
+    // dataProvider.getGasPice();
   }
 
   // late Timer _serverConnectTimer;
 
   Stream? _broadCast;
   StreamSubscription? _sub;
+
+  DataProvider dataProvider = DataProvider();
 
   @override
   void dispose() {
@@ -86,6 +96,12 @@ class _HomePageState extends State<HomePage> {
     if (_sub != null) {
       _sub!.cancel();
     }
+    if (_subConnectionReady != null) {
+      _subConnectionReady!.cancel();
+    }
+    // if (_sub != null) {
+    //   _sub!.cancel();
+    // }
     super.dispose();
   }
 
@@ -102,6 +118,8 @@ class _HomePageState extends State<HomePage> {
   List<FlSpot> flSpotsList = [];
   int maxXValue = 5;
 
+  Map weatherInfo = {};
+
   final _realtimeDataProvider = RealtimeDataProvider();
 
   final spinkit = SpinKitRotatingCircle(
@@ -116,7 +134,39 @@ class _HomePageState extends State<HomePage> {
   //   listenStream();
   // }
 
-  void listenStream() {
+  bool isDataProviderReady = false;
+
+  Stream<bool>? _connectionReadyStream;
+  StreamSubscription<bool>? _subConnectionReady;
+  void listenConnectionReady() {
+    debugPrint('listen connection ready init');
+    _connectionReadyStream = _realtimeDataProvider.connectionReady.stream;
+    debugPrint('_connectionReadyStream $_connectionReadyStream');
+    _subConnectionReady = _connectionReadyStream!.listen(
+        (event) {
+          // debugPrint('sub bool event $event');
+          setState(() {
+            if (event) {
+              isDataProviderReady = true;
+              // debugPrint(
+              //     'isDataProviderReady in homepage $isDataProviderReady');
+              // _isReady = true;
+            } else {
+              isDataProviderReady = false;
+              // debugPrint(
+              //     'isDataProviderReady in homepage $isDataProviderReady');
+              // _isReady = false;
+            }
+          });
+        },
+        onDone: () {},
+        onError: (e) {
+          debugPrint('error $e');
+        });
+  }
+
+  Future<void> listenStream() async {
+    await Future.delayed(Duration(milliseconds: 500));
     _broadCast = _realtimeDataProvider.streamController.stream;
     _sub = _broadCast!.listen((event) {
       // debugPrint('event in homepage from provider ${event}');
@@ -136,6 +186,36 @@ class _HomePageState extends State<HomePage> {
         carInteriorWashCnt = event['carInteriorWashCnt'];
         flSpotsList = event['flSpotsList'];
         maxXValue = event['maxXValue'];
+        croppedImgList = event['croppedImgList'];
+        croppedImgDateTimeList = event['croppedImgDateTimeList'];
+        croppedImgAreaList = event['croppedImgAreaList'];
+
+        // debugPrint('c1');
+        weatherInfo = event['weatherInfo'];
+        // debugPrint('c2');
+        weatherCode = weatherInfo['weather'][0]['id'];
+        // debugPrint('c3');
+        temp = weatherInfo['main']['temp'];
+        // debugPrint('c4');
+        // debugPrint('c4 : ${(weatherInfo['main']['feels_like'])}');
+        // debugPrint(
+        //     'c4 type : ${(weatherInfo['main']['feels_like'].runtimeType)}');
+        feelsLike =
+            double.parse((weatherInfo['main']['feels_like']).toString());
+        // debugPrint('c5');
+        minTemp = weatherInfo['main']['temp_min'];
+        // debugPrint('c6');
+        maxTemp = weatherInfo['main']['temp_max'];
+        // debugPrint('c7');
+        pressure = weatherInfo['main']['pressure'].toDouble();
+        // debugPrint('c8');
+        humidity = weatherInfo['main']['humidity'].toDouble();
+        // debugPrint('c9');
+        windSpeed = weatherInfo['wind']['speed'];
+        // debugPrint('c10');
+        weatherMain = weatherInfo['weather'][0]['main'];
+        weatherDescripstion = weatherInfo['weather'][0]['description'];
+
         setState(() {
           _isReady = true;
         });
@@ -159,300 +239,935 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  WrapperScene weatherScene = SunnyScene();
+  int? weatherCode;
+  double? temp;
+  double? feelsLike;
+  double? maxTemp;
+  double? minTemp;
+  double? humidity;
+  double? pressure;
+  double? windSpeed;
+  String? weatherMain;
+  String? weatherDescripstion;
+
+  Widget getWeatherCard(
+      int weatherCode,
+      double temp,
+      double feelsLike,
+      double maxTemp,
+      double minTemp,
+      double humidity,
+      double pressure,
+      double windSpeed,
+      String main,
+      String descripstion) {
+    if (weatherCode == 800) {
+      weatherScene = SunnyScene();
+    } else if (weatherCode >= 800 && weatherCode < 805) {
+      weatherScene = CloudyScene();
+    } else if (weatherCode >= 500 && weatherCode < 600) {
+      weatherScene = RainyScene();
+    } else if (weatherCode >= 300 && weatherCode < 400) {
+      weatherScene = RainyScene();
+    } else if (weatherCode >= 200 && weatherCode < 300) {
+      weatherScene = ThunderStormScene();
+    } else if (weatherCode >= 600 && weatherCode < 700) {
+      weatherScene = SnowyScene();
+    } else if (weatherCode >= 700 && weatherCode < 800) {
+      weatherScene = FoggyScene();
+    }
+    return Stack(
+      children: [
+        SizedBox(
+            width: 400,
+            height: 400,
+            child: Opacity(opacity: 0.7, child: weatherScene)),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 20,
+            ),
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text('Bucheon-si',
+                    style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w400,
+                        color: Colors.grey)),
+                SizedBox(
+                  height: 10,
+                ),
+                Text(
+                  '${temp.toStringAsFixed(1)} °C',
+                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                ),
+                SizedBox(
+                  height: 20,
+                ),
+                Row(
+                  children: [
+                    SizedBox(
+                      width: 40,
+                    ),
+                    Column(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Text('${weatherMain}',
+                            style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.blueGrey)),
+                        SizedBox(
+                          height: 10,
+                        ),
+                        Text('${weatherDescripstion}',
+                            style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w300,
+                                color: Colors.black54))
+                      ],
+                    ),
+                  ],
+                )
+              ],
+            ),
+            SizedBox(
+              width: 40,
+            ),
+            Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.keyboard_arrow_up_outlined,
+                        color: Colors.red,
+                        size: 20,
+                      ),
+                      Text('${maxTemp.toStringAsFixed(1)} °C'),
+                      // Text('/'),
+                      SizedBox(
+                        width: 8,
+                      ),
+                      Icon(
+                        Icons.keyboard_arrow_down_outlined,
+                        color: Colors.blue,
+                        size: 20,
+                      ),
+                      Text('${minTemp.toStringAsFixed(1)}° C'),
+                    ],
+                  ),
+                  SizedBox(
+                    height: 10,
+                  ),
+                  Row(
+                    children: [
+                      // SizedBox(
+                      //   width: 10,
+                      // ),
+                      Icon(
+                        Icons.water_drop,
+                        size: 16,
+                      ),
+                      SizedBox(
+                        width: 8,
+                      ),
+                      Text('${humidity.toStringAsFixed(1)} %'),
+                    ],
+                  ),
+                  SizedBox(
+                    height: 10,
+                  ),
+                  Row(
+                    children: [
+                      // SizedBox(
+                      //   width: 10,
+                      // ),
+                      Icon(
+                        Icons.feedback_outlined,
+                        size: 14,
+                      ),
+                      SizedBox(
+                        width: 8,
+                      ),
+                      Text('${feelsLike.toStringAsFixed(1)} °C'),
+                    ],
+                  ),
+                  SizedBox(
+                    height: 10,
+                  ),
+                  Row(
+                    children: [
+                      // SizedBox(
+                      //   width: 10,
+                      // ),
+                      Icon(
+                        Icons.wind_power_outlined,
+                        size: 14,
+                      ),
+                      SizedBox(
+                        width: 8,
+                      ),
+                      Text('${windSpeed.toStringAsFixed(1)} m/s'),
+                    ],
+                  ),
+                  SizedBox(
+                    height: 10,
+                  ),
+                  Row(
+                    children: [
+                      // SizedBox(
+                      //   width: 10,
+                      // ),
+                      Icon(
+                        Icons.air_outlined,
+                        size: 14,
+                      ),
+                      SizedBox(
+                        width: 8,
+                      ),
+                      Text('${pressure} hPa'),
+                    ],
+                  )
+                ])
+          ],
+        )
+        // Center(
+        //   child: Column(
+        //     children: [
+        //       SizedBox(
+        //         height: 20,
+        //       ),
+        //       Text('temp $temp'),
+        //       Text('feelsLiks $feelsLike'),
+        //       Text('min temp $minTemp'),
+        //       Text('max temp $maxTemp'),
+        //       Text('pressure $pressure'),
+        //       Text('humidity $humidity'),
+        //       Text('wind speed $windSpeed'),
+        //       Text('weather main $weatherMain'),
+        //       Text('weather des $weatherDescripstion'),
+        //       // Text(''),
+        //       // Text(''),
+        //     ],
+        //   ),
+        // ),
+      ],
+    );
+  }
+
+  List<Uint8List> croppedImgList = [];
+  List<String> croppedImgDateTimeList = [];
+  List<int> croppedImgAreaList = [];
+
+  Widget realtimeRecordViewContent() {
+    return Expanded(
+        child: croppedImgList.length > 0
+            ? ListView.builder(
+                padding: const EdgeInsets.all(16.0),
+                itemCount: croppedImgList.length,
+                itemBuilder: (BuildContext context, int index) {
+                  // debugPrint('list view idx: ${realtimeRecordViewDataList.length}');
+                  return Padding(
+                    padding: const EdgeInsets.all(3.0),
+                    child: listViewItem(index),
+                  );
+                })
+            : Center(
+                child: SizedBox(
+                    width: 200,
+                    height: 200,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // CircularProgressIndicator(),
+
+                        SpinKitPouringHourGlass(
+                          color: Colors.black38,
+                          size: 50,
+                          duration: Duration(milliseconds: 1000),
+                        ),
+                        SizedBox(
+                          height: 10,
+                        ),
+                        Text('No objects detected yet')
+                      ],
+                    ))));
+  }
+
+  Widget listViewItem(int index) {
+    Uint8List img = croppedImgList[index];
+    String timeString = croppedImgDateTimeList[index];
+    int areaNumInt = croppedImgAreaList[index];
+    String areaString = '${croppedImgAreaList[index]}';
+    return SizedBox(
+      height: 100,
+      child: Card(
+        elevation: 12.0,
+        // height: 80,
+        // color:,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Text('index: ${index}'),
+            Expanded(flex: 1, child: SizedBox()),
+            Expanded(
+              flex: 10,
+              child: Padding(
+                  padding: EdgeInsets.all(4.0), child: Image.memory(img)),
+            ),
+            // Text('IN:${imgNum}'),
+            Expanded(flex: 1, child: SizedBox()),
+            Expanded(
+              flex: 20,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(1.0),
+                    child: Text(timeString),
+                  ),
+                  Divider(
+                    height: 8,
+                    color: Colors.grey,
+                    indent: 18,
+                    endIndent: 18,
+                    thickness: 1.2,
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(1.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text('Area'),
+                        SizedBox(
+                          width: 4,
+                        ),
+                        Text(areaNumInt == 1
+                            ? '⓵'
+                            : areaNumInt == 3
+                                ? '⓷'
+                                : '⓸')
+                        // Icon(Icons.number)
+                      ],
+                    ),
+                  ),
+                  // Padding(
+                  //   padding: const EdgeInsets.all(1.0),
+                  //   child: Text('Direction: ( - , - )'),
+                  // )
+                ],
+              ),
+            ),
+            Expanded(flex: 1, child: SizedBox()),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     double machineWidth = MediaQuery.of(context).size.width;
     int gridCrossAxisCount = machineWidth ~/ 350;
     return _isReady
-        ? GridView.count(
-            padding: const EdgeInsets.all(8.0),
-            crossAxisCount: gridCrossAxisCount,
-            children: [
-                buildCustomCard(
-                    Expanded(
-                        child: AnimateGradient(
-                      duration: Duration(milliseconds: 5000),
-                      primaryBegin: Alignment.topLeft,
-                      primaryEnd: Alignment.bottomLeft,
-                      secondaryBegin: Alignment.bottomLeft,
-                      secondaryEnd: Alignment.topRight,
-                      primaryColors: [
-                        // Color(0xff1E1250).withOpacity(0.1),
-                        // Color(0xff1E1250).withOpacity(0.2),
-                        // Colors.white.withOpacity(0.1)
-                        Colors.pink.withOpacity(0.05),
-                        Colors.pinkAccent.withOpacity(0.05),
-                        Colors.white.withOpacity(0.1),
-                      ],
-                      secondaryColors: [
-                        Colors.white.withOpacity(0.1),
-                        Colors.blueAccent.withOpacity(0.1),
-                        Colors.blue.withOpacity(0.1),
-                      ],
-                      child: Center(
+        ? !isDataProviderReady
+            ? Center(
+                child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(
+                    height: 10,
+                  ),
+                  Text('Connecting to Server...')
+                ],
+              ))
+            : GridView.count(
+                padding: const EdgeInsets.all(8.0),
+                crossAxisCount: gridCrossAxisCount,
+                children: [
+                    buildCustomCard(
+                        Expanded(
+                            child: AnimateGradient(
+                          duration: Duration(milliseconds: 5000),
+                          primaryBegin: Alignment.topLeft,
+                          primaryEnd: Alignment.bottomLeft,
+                          secondaryBegin: Alignment.bottomLeft,
+                          secondaryEnd: Alignment.topRight,
+                          primaryColors: [
+                            // Color(0xff1E1250).withOpacity(0.1),
+                            // Color(0xff1E1250).withOpacity(0.2),
+                            // Colors.white.withOpacity(0.1)
+                            Colors.pink.withOpacity(0.05),
+                            Colors.pinkAccent.withOpacity(0.05),
+                            Colors.white.withOpacity(0.1),
+                          ],
+                          secondaryColors: [
+                            Colors.white.withOpacity(0.1),
+                            Colors.blueAccent.withOpacity(0.1),
+                            Colors.blue.withOpacity(0.1),
+                          ],
+                          child: Center(
+                              child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SizedBox(
+                                height: 10,
+                              ),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  // Text('주유소 이용 차량 대수 : '),
+                                  SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: Image.asset(
+                                          'assets/images/home.png')),
+                                  SizedBox(
+                                    width: 10,
+                                  ),
+                                  Text(
+                                    // '${electricChargingWaitingCnt + carInteriorWashCnt + numberOfWaitingCars}',
+                                    '${totalCnt}',
+                                    style: TextStyle(
+                                        color: Colors.black45, fontSize: 28),
+                                  ),
+                                  // IconButton(
+                                  //     onPressed: () {},
+                                  //     icon: Icon(Icons.question_mark_outlined)),
+                                  SizedBox(
+                                    width: 10,
+                                  ),
+                                  Tooltip(
+                                    triggerMode: TooltipTriggerMode.tap,
+                                    showDuration: Duration(milliseconds: 3000),
+                                    message: '주유소 이용 전체 차량 대수',
+                                    child: Icon(
+                                      Icons.info_outlined,
+                                      size: 16,
+                                      color: Colors.grey,
+                                    ),
+                                  )
+                                ],
+                              ),
+                              SizedBox(
+                                height: 20,
+                              ),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: Image.asset(
+                                          'assets/images/electric_charging.png')),
+                                  // Text('전기차 충전소 이용 차량 대수 : '),
+                                  SizedBox(
+                                    width: 10,
+                                  ),
+                                  Text(
+                                    '${electricChargingWaitingCnt}',
+                                    style: TextStyle(
+                                        color: Colors.black45, fontSize: 28),
+                                  ),
+                                  SizedBox(
+                                    width: 10,
+                                  ),
+                                  Tooltip(
+                                    triggerMode: TooltipTriggerMode.tap,
+                                    showDuration: Duration(milliseconds: 3000),
+                                    message: '전기차 충전소 이용 차량 대수',
+                                    child: Icon(
+                                      Icons.info_outlined,
+                                      size: 16,
+                                      color: Colors.grey,
+                                    ),
+                                  )
+                                ],
+                              ),
+                              SizedBox(
+                                height: 20,
+                              ),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  // Text('차량 내부세차장 이용 차량 대수 : '),
+                                  SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: Image.asset(
+                                          'assets/images/car_interior_cleaning.png')),
+                                  SizedBox(
+                                    width: 10,
+                                  ),
+                                  Text('${carInteriorWashCnt}',
+                                      style: TextStyle(
+                                          color: Colors.black45, fontSize: 28)),
+                                  SizedBox(
+                                    width: 10,
+                                  ),
+                                  Tooltip(
+                                    triggerMode: TooltipTriggerMode.tap,
+                                    showDuration: Duration(milliseconds: 3000),
+                                    message: '차량 내부세차장 이용 차량 대수',
+                                    child: Icon(
+                                      Icons.info_outlined,
+                                      size: 16,
+                                      color: Colors.grey,
+                                    ),
+                                  )
+                                ],
+                              ),
+                              SizedBox(
+                                height: 20,
+                              ),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  Icon(
+                                    Icons.analytics_outlined,
+                                    size: 10,
+                                    color: Colors.grey,
+                                  ),
+                                  Text(
+                                    ' Working... ',
+                                    style: TextStyle(
+                                        fontSize: 10, color: Colors.grey),
+                                  ),
+                                  SizedBox(width: 8, height: 8, child: spinkit),
+                                  SizedBox(
+                                    width: 20,
+                                  ),
+                                ],
+                              )
+                            ],
+                          )),
+                        )),
+                        // '실시간 이용현황'
+                        'Real-time usage status'),
+                    buildCustomCard(
+                        Expanded(
                           child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          SizedBox(
-                            height: 10,
-                          ),
-                          Row(
                             mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              // Text('주유소 이용 차량 대수 : '),
-                              SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: Image.asset('assets/images/home.png')),
-                              SizedBox(
-                                width: 10,
-                              ),
-                              Text(
-                                // '${electricChargingWaitingCnt + carInteriorWashCnt + numberOfWaitingCars}',
-                                '${totalCnt}',
-                                style: TextStyle(
-                                    color: Colors.black45, fontSize: 28),
-                              ),
-                              // IconButton(
-                              //     onPressed: () {},
-                              //     icon: Icon(Icons.question_mark_outlined)),
-                              SizedBox(
-                                width: 10,
-                              ),
-                              Tooltip(
-                                triggerMode: TooltipTriggerMode.tap,
-                                showDuration: Duration(milliseconds: 3000),
-                                message: '주유소 이용 전체 차량 대수',
-                                child: Icon(
-                                  Icons.info_outlined,
-                                  size: 16,
-                                  color: Colors.grey,
-                                ),
-                              )
-                            ],
-                          ),
-                          SizedBox(
-                            height: 20,
-                          ),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
                               SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: Image.asset(
-                                      'assets/images/electric_charging.png')),
-                              // Text('전기차 충전소 이용 차량 대수 : '),
+                                height: 6,
+                              ),
+                              // SizedBox(
+                              //   height: 6,
+                              // ),
+                              SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: SizedBox(
+                                        width: 300,
+                                        height: 180,
+                                        child: MyLineChart(
+                                          flSpotsList: flSpotsList,
+                                          maxXValue: maxXValue,
+                                        )),
+                                  )),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  SizedBox(
+                                    height: 12,
+                                    width: 12,
+                                    child: SpinKitPulse(
+                                        duration: Duration(milliseconds: 1000),
+                                        itemBuilder:
+                                            (BuildContext context, int index) {
+                                          // debugPrint('index : ${index}');
+                                          return DecoratedBox(
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              color: Colors.redAccent,
+                                            ),
+                                          );
+                                        }),
+                                  ),
+                                  SizedBox(
+                                    width: 4,
+                                  ),
+                                  Text(
+                                    '${congestion}',
+                                    style: TextStyle(
+                                        color: Colors.grey, fontSize: 12),
+                                  )
+                                ],
+                              ),
                               SizedBox(
-                                width: 10,
+                                height: 6,
                               ),
-                              Text(
-                                '${electricChargingWaitingCnt}',
-                                style: TextStyle(
-                                    color: Colors.black45, fontSize: 28),
-                              ),
-                              SizedBox(
-                                width: 10,
-                              ),
-                              Tooltip(
-                                triggerMode: TooltipTriggerMode.tap,
-                                showDuration: Duration(milliseconds: 3000),
-                                message: '전기차 충전소 이용 차량 대수',
-                                child: Icon(
-                                  Icons.info_outlined,
-                                  size: 16,
-                                  color: Colors.grey,
-                                ),
-                              )
-                            ],
-                          ),
-                          SizedBox(
-                            height: 20,
-                          ),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              // Text('차량 내부세차장 이용 차량 대수 : '),
-                              SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: Image.asset(
-                                      'assets/images/car_interior_cleaning.png')),
-                              SizedBox(
-                                width: 10,
-                              ),
-                              Text('${carInteriorWashCnt}',
-                                  style: TextStyle(
-                                      color: Colors.black45, fontSize: 28)),
-                              SizedBox(
-                                width: 10,
-                              ),
-                              Tooltip(
-                                triggerMode: TooltipTriggerMode.tap,
-                                showDuration: Duration(milliseconds: 3000),
-                                message: '차량 내부세차장 이용 차량 대수',
-                                child: Icon(
-                                  Icons.info_outlined,
-                                  size: 16,
-                                  color: Colors.grey,
-                                ),
-                              )
-                            ],
-                          ),
-                          SizedBox(
-                            height: 20,
-                          ),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              Icon(
-                                Icons.analytics_outlined,
-                                size: 10,
-                                color: Colors.grey,
-                              ),
-                              Text(
-                                ' Working... ',
-                                style:
-                                    TextStyle(fontSize: 10, color: Colors.grey),
-                              ),
-                              SizedBox(width: 8, height: 8, child: spinkit),
-                              SizedBox(
-                                width: 20,
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    'up to 100s',
+                                    style: TextStyle(
+                                        fontSize: 8, color: Colors.grey),
+                                  ),
+                                  SizedBox(
+                                    width: 10,
+                                  ),
+                                ],
                               ),
                             ],
-                          )
-                        ],
-                      )),
-                    )),
-                    '실시간 이용현황'),
-                buildCustomCard(
-                    Expanded(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          SizedBox(
-                            height: 6,
-                          ),
-                          // SizedBox(
-                          //   height: 6,
-                          // ),
-                          SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: SizedBox(
-                                    width: 300,
-                                    height: 180,
-                                    child: MyLineChart(
-                                      flSpotsList: flSpotsList,
-                                      maxXValue: maxXValue,
-                                    )),
-                              )),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              SizedBox(
-                                height: 12,
-                                width: 12,
-                                child: SpinKitPulse(
-                                    duration: Duration(milliseconds: 1000),
-                                    itemBuilder:
-                                        (BuildContext context, int index) {
-                                      // debugPrint('index : ${index}');
-                                      return DecoratedBox(
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          color: Colors.redAccent,
-                                        ),
-                                      );
-                                    }),
-                              ),
-                              SizedBox(
-                                width: 4,
-                              ),
-                              Text(
-                                '${congestion}',
-                                style:
-                                    TextStyle(color: Colors.grey, fontSize: 12),
-                              )
-                            ],
-                          ),
-                          SizedBox(
-                            height: 6,
-                          ),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              Text(
-                                'up to 100s',
-                                style:
-                                    TextStyle(fontSize: 8, color: Colors.grey),
-                              ),
-                              SizedBox(
-                                width: 10,
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    '실시간 주유소 혼잡도 추이'),
-                buildCustomCard(
-                    Expanded(
-                        child: Padding(
-                      padding: const EdgeInsets.all(12.0),
-                      child: Center(
-                        child: SizedBox(
-                          height: 240,
-                          width: 240,
-                          child: SingleChildScrollView(
-                            child: HeatMapCalendar(
-                              // size: ,
-                              defaultColor: Colors.white,
-                              flexible: true,
-                              colorMode: ColorMode.opacity,
-                              datasets: {
-                                DateTime(2023, 11, 8): 3,
-                                DateTime(2023, 11, 9): 7,
-                                DateTime(2023, 11, 10): 10,
-                                DateTime(2023, 11, 11): 13,
-                                DateTime(2023, 11, 12): 6,
-                                DateTime(2023, 11, 13): 13,
-                                DateTime(2023, 11, 14): 8,
-                              },
-                              colorsets: const {
-                                1: Colors.red,
-                                3: Colors.red,
-                                5: Colors.red,
-                                7: Colors.red,
-                                9: Colors.red,
-                                11: Colors.red,
-                                13: Colors.red,
-                              },
-                              onClick: (value) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text(value.toString())));
-                              },
-                            ),
                           ),
                         ),
-                      ),
-                    )),
-                    '월간 누적 혼잡도 추이')
-              ])
+                        // '실시간 주유소 혼잡도 추이'
+                        'Real-time congestion trend'),
+                    buildCustomCard(realtimeRecordViewContent(), '실시간 차량기록'),
+                    buildCustomCard(
+                        Expanded(
+                            child: Padding(
+                          padding: const EdgeInsets.all(12.0),
+                          child: Center(
+                            child: SizedBox(
+                              height: 240,
+                              width: 240,
+                              child: SingleChildScrollView(
+                                child: HeatMapCalendar(
+                                  // size: ,
+                                  defaultColor: Colors.white,
+                                  flexible: true,
+                                  colorMode: ColorMode.opacity,
+                                  datasets: {
+                                    DateTime(2023, 11, 8): 3,
+                                    DateTime(2023, 11, 9): 7,
+                                    DateTime(2023, 11, 10): 10,
+                                    DateTime(2023, 11, 11): 13,
+                                    DateTime(2023, 11, 12): 6,
+                                    DateTime(2023, 11, 13): 13,
+                                    DateTime(2023, 11, 14): 8,
+                                    DateTime(2023, 12, 1): 3,
+                                    DateTime(2023, 12, 2): 7,
+                                    DateTime(2023, 12, 3): 13,
+                                    DateTime(2023, 12, 4): 4,
+                                    DateTime(2023, 12, 5): 11,
+                                    DateTime(2023, 12, 6): 1,
+                                  },
+                                  colorsets: const {
+                                    1: Colors.red,
+                                    3: Colors.red,
+                                    5: Colors.red,
+                                    7: Colors.red,
+                                    9: Colors.red,
+                                    11: Colors.red,
+                                    13: Colors.red,
+                                  },
+                                  onClick: (value) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                            content: Text(value.toString())));
+                                  },
+                                ),
+                              ),
+                            ),
+                          ),
+                        )),
+                        // '월간 누적 혼잡도 추이'
+                        'Monthly congestion trend'),
+                    // buildCustomCard(
+                    //     Expanded(
+                    //         child: Center(
+                    //             child: WrapperScene(
+                    //       colors: [Colors.white54, Colors.lightBlueAccent],
+                    //       children: [
+                    //         SunWidget(
+                    //           sunConfig: SunConfig(
+                    //             width: 262.0,
+                    //             blurSigma: 5.0,
+                    //             blurStyle: BlurStyle.inner,
+                    //             isLeftLocation: true,
+                    //             coreColor: Color(0xffffa726),
+                    //             midColor: Color(0xd6ffee58),
+                    //             outColor: Color(0xffff9800),
+                    //             animMidMill: 2000,
+                    //             animOutMill: 1800,
+                    //           ),
+                    //         ),
+                    //         // CloudWidget(),
+                    //         // WindWidget(),
+                    //         // RainDropWidget(),
+                    //         // SnowWidget(),
+                    //         // RainWidget(),
+                    //       ],
+                    //     ))),
+                    //     "Sunny Weather"),
+                    // buildCustomCard(
+                    //     Expanded(
+                    //         child: Center(
+                    //             child: WrapperScene(
+                    //       colors: [Colors.white54, Colors.grey],
+                    //       children: [
+                    //         // SunWidget(),
+                    //         CloudWidget(),
+                    //         WindWidget(
+                    //           windConfig: WindConfig(
+                    //               windGap: 30,
+                    //               color: Colors.blueGrey.withOpacity(0.5)),
+                    //         ),
+                    //         // RainDropWidget(),
+                    //         // SnowWidget(),
+                    //
+                    //         // RainWidget(),
+                    //       ],
+                    //     ))),
+                    //     "cloudy Weather"),
+                    // buildCustomCard(
+                    //     Expanded(
+                    //         child: Center(
+                    //             child: WrapperScene(
+                    //       colors: [Colors.grey, Colors.grey, Colors.white],
+                    //       children: [
+                    //         // SunWidget(),
+                    //         CloudWidget(),
+                    //         // WindWidget(),
+                    //         // RainDropWidget(),
+                    //         SnowWidget(),
+                    //
+                    //         // RainWidget(),
+                    //       ],
+                    //     ))),
+                    //     "Snowy Weather"),
+                    // buildCustomCard(
+                    //     Expanded(
+                    //         child: Center(
+                    //             child: WrapperScene(
+                    //       colors: [Colors.white54, Colors.grey],
+                    //       children: [
+                    //         // SunWidget(),
+                    //         CloudWidget(),
+                    //         // WindWidget(),
+                    //         // RainDropWidget(),
+                    //         // SnowWidget(),
+                    //         RainWidget(),
+                    //       ],
+                    //     ))),
+                    //     "Rainy Weather"),
+                    // buildCustomCard(
+                    //     Expanded(
+                    //         child: Center(
+                    //             child: WrapperScene(
+                    //       colors: [
+                    //         Colors.black54,
+                    //         Colors.grey,
+                    //         Colors.grey,
+                    //         Colors.white54
+                    //       ],
+                    //       children: [
+                    //         // SunWidget(),
+                    //         CloudWidget(),
+                    //         // WindWidget(),
+                    //         // RainDropWidget(),
+                    //         // SnowWidget(),
+                    //         ThunderWidget(),
+                    //         RainWidget(),
+                    //       ],
+                    //     ))),
+                    //     "ThunderStorm Weather"),
+                    buildCustomCard(
+                        Expanded(
+                            child: Center(
+                          child: weatherCode != null
+                              ? getWeatherCard(
+                                  weatherCode!,
+                                  temp!,
+                                  feelsLike!,
+                                  maxTemp!,
+                                  minTemp!,
+                                  humidity!,
+                                  pressure!,
+                                  windSpeed!,
+                                  weatherMain!,
+                                  weatherDescripstion!)
+                              : SpinKitDualRing(
+                                  color: Colors.black54,
+                                  duration: Duration(milliseconds: 900),
+                                ),
+                        )),
+                        'Weather'),
+                    buildCustomCard(
+                        Expanded(
+                            child: dataProvider.todayPriceList != null
+                                ? GasPriceChart(
+                                    yesterdayPriceList:
+                                        dataProvider.yesterdayPriceList!,
+                                    todayPriceList:
+                                        dataProvider.todayPriceList!,
+                                  )
+                                : Center(
+                                    child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      IconButton(
+                                        icon: Icon(
+                                          Icons.refresh,
+                                          size: 28,
+                                          color: Colors.grey,
+                                        ),
+                                        onPressed: () async {
+                                          await dataProvider.getGasPice();
+                                        },
+                                      ),
+                                      Text(
+                                        'Refresh',
+                                        style: TextStyle(
+                                            fontSize: 14, color: Colors.grey),
+                                      )
+                                    ],
+                                  ))),
+                        'Gas Prices'),
+                    // buildCustomCard(
+                    //     Expanded(child: ThunderStormScene()), 'ThunderStrom'),
+                    // buildCustomCard(Expanded(child: SunnyScene()), 'Sunny'),
+                    // buildCustomCard(Expanded(child: CloudyScene()), 'Cloudy'),
+                    // buildCustomCard(Expanded(child: RainyScene()), 'Rainy'),
+                    // buildCustomCard(Expanded(child: SnowyScene()), 'Snowy'),
+                    // buildCustomCard(Expanded(child: FoggyScene()), 'Foggy'),
+                  ])
         : Center(
             child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CircularProgressIndicator(),
-              SizedBox(
-                height: 10,
+              SpinKitDualRing(
+                color: Colors.black54,
+                duration: Duration(milliseconds: 900),
               ),
-              Text('서버에 연결 중...')
+              // CircularProgressIndicator(),
+              SizedBox(
+                height: 20,
+              ),
+              Text('Loading Data...')
             ],
           ));
   }
+}
+
+class ThunderStormScene extends WrapperScene {
+  ThunderStormScene(
+      {super.key, super.children = childrenList, super.colors = colorsList});
+  @override
+  static const List<Widget> childrenList = [
+    CloudWidget(),
+    ThunderWidget(
+      thunderConfig: ThunderConfig(thunderWidth: 20.0),
+    ),
+    RainWidget(),
+  ];
+  static const List<Color> colorsList = [
+    Colors.black54,
+    Colors.grey,
+    Colors.grey,
+    Colors.white54
+  ];
+}
+
+class SunnyScene extends WrapperScene {
+  SunnyScene(
+      {super.key, super.children = childrenList, super.colors = colorsList});
+  @override
+  static const List<Widget> childrenList = [
+    SunWidget(
+      sunConfig: SunConfig(
+        width: 262.0,
+        blurSigma: 5.0,
+        blurStyle: BlurStyle.inner,
+        isLeftLocation: true,
+        coreColor: Color(0xffffa726),
+        midColor: Color(0xd6ffee58),
+        outColor: Color(0xffff9800),
+        animMidMill: 2000,
+        animOutMill: 1800,
+      ),
+    ),
+  ];
+  static const List<Color> colorsList = [
+    Colors.white54,
+    Colors.lightBlueAccent
+  ];
+}
+
+class RainyScene extends WrapperScene {
+  RainyScene(
+      {super.key, super.children = childrenList, super.colors = colorsList});
+  @override
+  static const List<Widget> childrenList = [
+    CloudWidget(),
+    RainWidget(
+      rainConfig: RainConfig(color: Colors.lightBlueAccent, widthDrop: 5.0),
+    ),
+  ];
+  static const List<Color> colorsList = [
+    Colors.white54,
+    Colors.grey,
+    Colors.grey
+  ];
+}
+
+class CloudyScene extends WrapperScene {
+  CloudyScene(
+      {super.key, super.children = childrenList, super.colors = colorsList});
+  @override
+  static const List<Widget> childrenList = [
+    CloudWidget(),
+    WindWidget(
+      windConfig: WindConfig(windGap: 30, color: Colors.black54),
+    ),
+  ];
+  static const List<Color> colorsList = [
+    Colors.white54,
+    Colors.grey,
+  ];
+}
+
+class SnowyScene extends WrapperScene {
+  SnowyScene(
+      {super.key, super.children = childrenList, super.colors = colorsList});
+  @override
+  static const List<Widget> childrenList = [
+    CloudWidget(),
+    SnowWidget(),
+  ];
+  static const List<Color> colorsList = [
+    Colors.white54,
+    Colors.grey,
+    Colors.grey,
+    Colors.white
+  ];
+}
+
+class FoggyScene extends WrapperScene {
+  FoggyScene(
+      {super.key, super.children = childrenList, super.colors = colorsList});
+  @override
+  static const List<Widget> childrenList = [
+    CloudWidget(
+      cloudConfig: CloudConfig(x: 20, y: 35, color: Colors.black38, size: 250),
+    ),
+    CloudWidget(
+        cloudConfig: CloudConfig(
+            x: 190,
+            y: 170,
+            color: Colors.black12,
+            size: 180,
+            slideDurMill: 2000))
+  ];
+  static const List<Color> colorsList = [
+    Colors.white24,
+    Colors.grey,
+    Colors.grey,
+    Colors.grey
+  ];
 }
 
 class MyLineChart extends StatefulWidget {
@@ -569,7 +1284,7 @@ class _MyLineChartState extends State<MyLineChart> {
   Widget leftTitleWidgets(double value, TitleMeta meta) {
     const style = TextStyle(
       fontWeight: FontWeight.w500,
-      fontSize: 6,
+      fontSize: 9,
     );
     String text;
     switch (value.toInt()) {
@@ -630,7 +1345,7 @@ class _MyLineChartState extends State<MyLineChart> {
             showTitles: true,
             interval: 1,
             getTitlesWidget: leftTitleWidgets,
-            reservedSize: 42,
+            reservedSize: 32,
           ),
         ),
       ),
@@ -709,7 +1424,10 @@ Widget buildCustomCard(Widget inCardWidget, String titleText) {
                 child: Container(
                     height: 50,
                     padding: EdgeInsets.all(8.0),
-                    color: Color(0xff1E1250).withOpacity(0.9),
+                    // color: Color(0xff1E1250).withOpacity(0.9),
+                    color: Colors.black54,
+                    // color: Colors.indigo,
+                    // color: Colors.blueAccent,
                     // decoration: BoxDecoration(
                     //     gradient: LinearGradient(
                     //         begin: Alignment.centerLeft,
